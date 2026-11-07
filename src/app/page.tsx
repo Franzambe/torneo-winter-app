@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Countdown } from "@/components/Countdown";
+import { MatchTable } from "@/components/MatchTable";
 import { getTournament } from "@/lib/data";
 import { fmtDate, scoreText, todayIso, PHASE_LABEL } from "@/lib/format";
 import { nextKeyDate } from "@/lib/tournament";
@@ -14,6 +15,12 @@ export default async function Home() {
     .sort((a, b) => String((b as { updated_at?: string }).updated_at ?? "").localeCompare(String((a as { updated_at?: string }).updated_at ?? "")))
     .slice(0, 6);
   const summary = (d.settings.rules_summary || "").split("\n").filter(Boolean);
+  // incontri della settimana in corso, altrimenti della prossima settimana con partite
+  const nowList = d.matches.filter((m) => m.week_start && m.week_end && m.week_start <= today && m.week_end >= today);
+  const nextStart = d.matches.map((m) => m.week_start ?? "").filter((x) => x > today).sort()[0];
+  const upcoming = nowList.length
+    ? { title: "Incontri di questa settimana", list: nowList }
+    : { title: nextStart ? `Prossimi incontri · settimana dal ${fmtDate(nextStart)}` : "Prossimi incontri", list: d.matches.filter((m) => m.week_start === nextStart) };
 
   return (
     <div className="space-y-6">
@@ -60,6 +67,18 @@ export default async function Home() {
           </table>
         </section>
       </div>
+
+      <section>
+        <div className="mb-2 flex items-end justify-between">
+          <h2 className="h2">{upcoming.title}</h2>
+          <Link href="/calendario" className="text-sm underline">Calendario completo</Link>
+        </div>
+        {upcoming.list.length ? (
+          <MatchTable matches={upcoming.list} names={d.names} />
+        ) : (
+          <p className="muted">Nessun incontro in programma.</p>
+        )}
+      </section>
 
       <section className="card">
         <h2 className="h2 mb-3">Ultimi risultati</h2>

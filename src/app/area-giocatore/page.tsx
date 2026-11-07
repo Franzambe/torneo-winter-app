@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ResultForm } from "@/components/ResultForm";
 import { Badge, Empty, Flash, PageHeader } from "@/components/ui";
 import { getViewer } from "@/lib/auth";
@@ -12,12 +13,20 @@ export default async function AreaGiocatore({ searchParams }: { searchParams: { 
 
   if (!viewer.playerId) {
     return (
-      <div>
-        <PageHeader title="Area giocatore" />
-        <Empty>
-          Il tuo account ({viewer.email}) non è ancora collegato a un iscritto. Chiedi al Comitato di registrare questa email
-          nella tua scheda giocatore.
-        </Empty>
+      <div className="space-y-4">
+        <PageHeader title="Area giocatore" subtitle={`Accesso effettuato come ${viewer.email}`} />
+        {viewer.role === "admin" ? (
+          <div className="card space-y-2">
+            <p>Sei collegato come <b>admin del torneo</b> (non come giocatore).</p>
+            <p className="muted">Dal pannello admin puoi gestire giocatori, partite e risultati, e confermare le segnalazioni.</p>
+            <Link href="/admin" className="btn">Vai al pannello admin</Link>
+          </div>
+        ) : (
+          <Empty>
+            L&apos;email {viewer.email} non corrisponde a nessun iscritto. Accedi con l&apos;email che hai indicato
+            nell&apos;iscrizione, oppure chiedi al Comitato di aggiornarla nella tua scheda.
+          </Empty>
+        )}
       </div>
     );
   }
@@ -32,7 +41,9 @@ export default async function AreaGiocatore({ searchParams }: { searchParams: { 
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`Ciao ${me?.full_name ?? ""}`} subtitle="Le tue partite: organizza con l'avversario su WhatsApp e inserisci il risultato entro 24 ore (art. 4.2, 4.7)." />
+      <PageHeader title={`Ciao ${me?.full_name ?? ""}`} subtitle="Le tue partite: organizza con l'avversario su WhatsApp e inserisci il risultato entro 24 ore (art. 4.2, 4.7).">
+        {viewer.role === "admin" && <Link href="/admin" className="btn-ghost">Pannello admin</Link>}
+      </PageHeader>
       <Flash searchParams={searchParams} />
       {mine.length === 0 && <Empty>Non hai ancora partite in calendario.</Empty>}
       <div className="grid gap-4 md:grid-cols-2">

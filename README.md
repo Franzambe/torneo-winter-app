@@ -101,6 +101,22 @@ Il collegamento è automatico al primo accesso.
    - aggiungi `https://torneo-winter.vercel.app/auth/callback` e `http://localhost:3000/auth/callback` ai *Redirect URLs*.
 4. **Project Settings › API**: copia *Project URL* e *anon public key*.
 
+### 1-bis. Email di accesso (obbligatorio)
+In **Authentication › Emails › Templates** sostituisci il testo dei template **Magic Link** e **Confirm signup** con questo. Così l'email contiene il codice a 6 cifre e un link che funziona anche se aperto su un altro dispositivo:
+
+```html
+<h2>Accesso al Torneo Winter</h2>
+<p>Il tuo codice di accesso è: <strong style="font-size:22px;letter-spacing:4px">{{ .Token }}</strong></p>
+<p>Inseriscilo nella pagina di accesso, oppure
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/area-giocatore">clicca qui per entrare</a>.</p>
+<p>Tennis Alumni Club POLIMI GSoM</p>
+```
+
+In **Authentication › URL Configuration** il *Site URL* deve essere l'indirizzo dell'app (`https://torneo-winter-app.vercel.app`), non `localhost`.
+
+### 1-ter. Dati del torneo
+Esegui `supabase/fix_and_import_v4.sql` nel SQL Editor. Lo script carica i 16 iscritti (con email, cellulare, livello e girone), le 24 partite di Fase 1 e gli admin, e allinea il ruolo di chi si era già registrato. Si può rieseguire senza danni.
+
 ### 2. In locale
 ```bash
 cp .env.example .env.local   # incolla URL e anon key
@@ -131,3 +147,12 @@ npm test                     # test del regolamento
 | `npm test` | test della logica del regolamento |
 | `npm run typecheck` | controllo dei tipi TypeScript |
 | `npm run build` | build di produzione |
+
+## Problemi di accesso
+
+| Sintomo | Causa | Soluzione |
+|---|---|---|
+| Il link apre `localhost` o una pagina che non carica | *Site URL* di Supabase non impostato | Authentication › URL Configuration (punto 1-bis) |
+| «Il link è stato aperto in un browser diverso» | Link richiesto dal PC e aperto dal telefono, o viceversa | Inserire il codice a 6 cifre, oppure aggiornare il template (punto 1-bis) |
+| Entro ma non vedo l'area admin | Email non presente in `admin_emails` quando ci si è registrati | Eseguire `fix_and_import_v4.sql`. In futuro gli admin si aggiungono da *Admin › Impostazioni* |
+| «Email non corrisponde a nessun iscritto» | L'email usata è diversa da quella nella scheda del giocatore | Correggere l'email in *Admin › Giocatori*: il collegamento è immediato |
