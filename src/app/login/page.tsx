@@ -10,12 +10,17 @@ const ERRORS: Record<string, string> = {
   otp_expired: "Il link è scaduto o è già stato usato. Richiedi un nuovo codice.",
 };
 
-/** Accesso senza password: codice a 6 cifre via email (funziona su qualsiasi dispositivo) oppure link. */
+/**
+ * Accesso senza password: codice a 6 cifre via email (funziona su qualsiasi dispositivo) oppure link.
+ * Il Comitato (ruolo admin) può entrare anche con email e password: la password si imposta da
+ * Supabase › Authentication › Users. Un utente non admin che usa la password viene scollegato.
+ */
 export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [step, setStep] = useState<"email" | "code">("email");
+  const [password, setPassword] = useState("");
+  const [step, setStep] = useState<"email" | "code" | "password">("email");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [next, setNext] = useState("/area-giocatore");
@@ -59,12 +64,46 @@ export default function Login() {
     }
   }
 
+  async function loginWithPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+    if (error || !data.user) {
+      setBusy(false);
+      setError("Email o password non corretti.");
+      return;
+    }
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+    if (profile?.role !== "admin") {
+      await supabase.auth.signOut();
+      setBusy(false);
+      setError("L'accesso con password è riservato al Comitato. Usa il codice via email.");
+      return;
+    }
+    setBusy(false);
+    const q = new URLSearchParams(window.location.search);
+    router.replace(q.get("next") ?? "/admin");
+    router.refresh();
+  }
+
   return (
     <div className="mx-auto max-w-md">
       <div className="card">
         <h1 className="h1">Accedi</h1>
         {error && <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-        {step === "email" ? (
+        {step === "password" ? (
+          <form onSubmit={loginWithPassword} className="mt-4 space-y-3">
+            <p className="muted">Accesso del Comitato con email e password.</p>
+            <input type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@esempio.it" className="input" />
+            <input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="input" />
+            <button className="btn w-full" disabled={busy}>{busy ? "Accesso…" : "Accedi"}</button>
+            <button type="button" className="w-full text-center text-xs text-black/55 underline" onClick={() => { setStep("email"); setPassword(""); setError(""); }}>
+              Torna all&apos;accesso con codice via email
+            </button>
+          </form>
+        ) : step === "email" ? (
           <form onSubmit={send} className="mt-4 space-y-3">
             <p className="muted">Usa l&apos;email con cui ti sei iscritto al torneo: riceverai un codice di accesso (e un link).</p>
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@esempio.it" className="input" />
@@ -85,6 +124,11 @@ export default function Login() {
         )}
       </div>
       <p className="mt-3 text-center text-xs text-black/45">Non serve una password. Se non trovi l&apos;email, controlla nella posta indesiderata.</p>
+      {step !== "password" && (
+        <button type="button" className="mx-auto mt-2 block text-[11px] text-black/35 underline" onClick={() => { setStep("password"); setError(""); }}>
+          Accesso Comitato con password
+        </button>
+      )}
     </div>
   );
 }
