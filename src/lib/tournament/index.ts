@@ -1,5 +1,6 @@
 export * from "./types";
 export * from "./roundRobin";
+export * from "./homeAway";
 export * from "./groups";
 export * from "./standings";
 export * from "./overall";

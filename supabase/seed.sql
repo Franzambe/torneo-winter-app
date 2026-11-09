@@ -27,7 +27,7 @@ insert into public.players (full_name, fee_paid) values
   ('Rizzi Gianluca', true),
   ('Rota Alessandro', true),
   ('Alessandra Mario', true),
-  ('Lopomarda Sara', true),
+  ('Lapomarda Sara', true),
   ('Megnani Alessandro', true),
   ('Marincola Marco', true),
   ('El Moutaouakkil Sabrine', true),

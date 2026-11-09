@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * Aggiorna la sessione e protegge le aree riservate:
- * - /area-giocatore richiede il login
+ * - /area-giocatore e /contatti richiedono il login
  * - /admin richiede il ruolo admin (verificato anche lato server in ogni azione e dalle policy RLS)
  */
 export async function updateSession(request: NextRequest) {
@@ -25,7 +25,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
-  const needsLogin = path.startsWith("/area-giocatore") || path.startsWith("/admin");
+  const needsLogin = path.startsWith("/area-giocatore") || path.startsWith("/contatti") || path.startsWith("/admin");
 
   if (needsLogin && !user) {
     const url = request.nextUrl.clone();

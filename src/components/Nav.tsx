@@ -23,6 +23,7 @@ export function Nav({ viewer }: { viewer: Viewer }) {
             <Link key={href} href={href} className="text-white/80 hover:text-white">{label}</Link>
           ))}
           {viewer.userId && <Link href="/area-giocatore" className="text-white/80 hover:text-white">Area giocatore</Link>}
+          {viewer.userId && <Link href="/contatti" className="text-white/80 hover:text-white">Contatti</Link>}
           {viewer.role === "admin" && <Link href="/admin" className="font-semibold text-amber-300 hover:text-amber-200">Admin</Link>}
         </nav>
         {viewer.userId ? (

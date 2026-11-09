@@ -21,9 +21,8 @@ export function roundRobin(ids: string[]): Pairing[] {
       const a = rot[i];
       const b = rot[n - 1 - i];
       if (a === null || b === null) continue;
-      // alterna il giocatore di casa per bilanciare prenotazioni e palline (art. 4.1)
-      const swap = (r + i) % 2 === 1;
-      out.push({ round: r + 1, home: swap ? b : a, away: swap ? a : b });
+      // casa/trasferta provvisorie: le bilancia balanceHomeAway (homeAway.ts, art. 4.1)
+      out.push({ round: r + 1, home: a, away: b });
     }
     // rotazione: il primo resta fermo, gli altri ruotano in senso orario
     rot = [rot[0], rot[n - 1], ...rot.slice(1, n - 1)];

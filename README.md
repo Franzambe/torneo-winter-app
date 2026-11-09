@@ -13,7 +13,7 @@ Stack: **Next.js 14 (App Router) + TypeScript + Tailwind CSS + Supabase** (Auth,
 ## Struttura
 
 ```
-├── middleware.ts                    # sessione + protezione /area-giocatore e /admin
+├── middleware.ts                    # sessione + protezione /area-giocatore, /contatti e /admin
 ├── supabase/
 │   ├── schema.sql                   # tabelle, trigger, policy RLS, bucket documenti
 │   └── seed.sql                     # impostazioni v4, email admin, 11 iscritti confermati
@@ -25,13 +25,14 @@ Stack: **Next.js 14 (App Router) + TypeScript + Tailwind CSS + Supabase** (Auth,
     │   ├── tournament/              # LOGICA DEL REGOLAMENTO (TypeScript puro, testato)
     │   │   ├── types.ts             # modello dati e impostazioni di default
     │   │   ├── roundRobin.ts        # gironi all'italiana (Berger, riposo nei gironi dispari)
+    │   │   ├── homeAway.ts          # casa/trasferta: max 2 di fila, compensazione F1→F2, sorteggio
     │   │   ├── groups.ts            # serpentina F1 (art. 2.2) e fasce F2 (art. 2.4)
     │   │   ├── standings.ts         # classifiche, tiebreak, ritiri (art. 6, 8.3)
     │   │   ├── overall.ts           # classifica unica di Fase 1 (art. 6.3)
     │   │   ├── bracket.ts           # seed, incroci, bye, doppio tavolino (art. 7)
     │   │   ├── validation.ts        # punteggi 9 game / 2 set su 3 (art. 5)
     │   │   ├── calendar.ts          # settimane, pausa natalizia, date chiave (art. 3, 4.8, A.5)
-    │   │   └── __tests__/           # 21 test (Vitest)
+    │   │   └── __tests__/           # 29 test (Vitest)
     │   ├── supabase/                # client server/browser/middleware
     │   ├── data.ts                  # carica i dati e calcola classifiche, calendario, tabelloni
     │   ├── auth.ts                  # utente corrente e ruolo (RBAC)
@@ -44,6 +45,7 @@ Stack: **Next.js 14 (App Router) + TypeScript + Tailwind CSS + Supabase** (Auth,
         ├── tabelloni/               # Winners e Challenger
         ├── download/                # regolamento PDF + PDF di calendario e classifiche
         ├── area-giocatore/          # partite personali e inserimento risultato
+        ├── contatti/                # elenco contatti (solo partecipanti) + download CSV e vCard
         ├── login/, auth/            # accesso con link via email
         └── admin/                   # panoramica, giocatori, fasi, partite, segnalazioni, impostazioni
 ```
@@ -54,6 +56,7 @@ Stack: **Next.js 14 (App Router) + TypeScript + Tailwind CSS + Supabase** (Auth,
 |---|---|---|
 | 2.1, A.1 | Gironi F1 da 4, eventualmente da 3, mai da 5 | `groups.ts › f1GroupCount` |
 | 2.2 | Distribuzione a serpentina per seeding | `groups.ts › snakeGroups` |
+| 4.1, 4.6 | Casa/trasferta: mai 3 di fila, metà partite in casa per fase, compensazione F1→F2, sorteggio | `homeAway.ts › balanceHomeAway` |
 | 2.4, A.2 | Girone A = metà alta della classifica unica | `groups.ts › composeF2` |
 | 2.5–2.6, 7, A.3–A.4 | Winners = primi 6 di A + primi 2 di B; incroci A1-B2, A4-A5, A2-B1, A3-A6 | `bracket.ts › bracketSeeds, buildBracket` |
 | 3, 4.8, A.5 | Calendario, pausa natalizia, proroghe, date chiave | `calendar.ts › buildSchedule` |
@@ -72,7 +75,7 @@ La logica è indipendente da React e dal database. Si verifica con `npm test`: i
 | | Anonimo | Giocatore | Admin |
 |---|---|---|---|
 | Classifiche, calendario, tabelloni, download | ✓ | ✓ | ✓ |
-| Contatti degli altri giocatori | — | ✓ | ✓ |
+| Contatti degli altri giocatori (pagina *Contatti*, download CSV e vCard) | — | ✓ | ✓ |
 | Segnalare il risultato delle **proprie** partite non confermate | — | ✓ | ✓ |
 | Modificare giocatori, partite, fasi, impostazioni, regolamento | — | — | ✓ |
 
@@ -117,6 +120,9 @@ In **Authentication › URL Configuration** il *Site URL* deve essere l'indirizz
 ### 1-ter. Dati del torneo
 Esegui `supabase/fix_and_import_v4.sql` nel SQL Editor. Lo script carica i 16 iscritti (con email, cellulare, livello e girone), le 24 partite di Fase 1 e gli admin, e allinea il ruolo di chi si era già registrato. Si può rieseguire senza danni.
 
+### 1-quater. Casa/trasferta di Fase 1 (novembre 2026)
+Esegui `supabase/f1_casa_trasferta.sql`: corregge il cognome Lapomarda e ribilancia chi gioca in casa nelle 24 partite di Fase 1 (sorteggio già incluso nello script). Accoppiamenti e settimane non cambiano.
+
 ### 2. In locale
 ```bash
 cp .env.example .env.local   # incolla URL e anon key
@@ -133,11 +139,12 @@ npm test                     # test del regolamento
 ## Uso durante il torneo
 
 1. **Giocatori:** in *Admin › Giocatori* inserisci email (serve per l'accesso), cellulare, livello e **punteggio di seeding**. Gli 11 confermati sono già caricati.
-2. **15/11 — Fase 1:** in *Admin › Fasi* clicca *Genera gironi e calendario F1*. Le settimane vengono assegnate automaticamente.
-3. **Durante le fasi:** i giocatori inseriscono i risultati e tu li confermi in *Segnalazioni*. Tavolini, ritiri (stato del giocatore) e correzioni si gestiscono in *Partite* e *Giocatori*.
-4. **03/01 — Fase 2:** *Genera gironi e calendario F2*. La classifica unica di Fase 1 decide i gironi A e B.
-5. **14/03 — Tabelloni:** *Genera tabelloni*. I seed vengono congelati e il tabellone avanza da solo con i risultati.
-6. **Parità assolute:** il simbolo ⚑ in classifica segnala una parità che va sorteggiata. Il Comitato esegue il sorteggio e inserisce l'esito nel campo «Sorteggio F1/F2» della scheda giocatore (più alto = meglio).
+2. **15/11 — Fase 1:** già caricata con `fix_and_import_v4.sql` e `f1_casa_trasferta.sql`. **Non** cliccare *Genera gironi e calendario F1*: ricreerebbe le partite con un nuovo sorteggio e il calendario non corrisponderebbe più all'Excel.
+3. **Contatti:** i giocatori collegati vedono la pagina *Contatti* e possono scaricare l'elenco in CSV (Excel) o vCard (rubrica del telefono).
+4. **Durante le fasi:** i giocatori inseriscono i risultati e tu li confermi in *Segnalazioni*. Tavolini, ritiri (stato del giocatore) e correzioni si gestiscono in *Partite* e *Giocatori*.
+5. **03/01 — Fase 2:** *Genera gironi e calendario F2*. La classifica unica di Fase 1 decide i gironi A e B; casa/trasferta compensano la Fase 1. Riporta poi nell'Excel le X indicate in *Admin › Fasi › Allinea l'Excel*.
+6. **14/03 — Tabelloni:** *Genera tabelloni*. I seed vengono congelati e il tabellone avanza da solo con i risultati.
+7. **Parità assolute:** il simbolo ⚑ in classifica segnala una parità che va sorteggiata. Il Comitato esegue il sorteggio e inserisce l'esito nel campo «Sorteggio F1/F2» della scheda giocatore (più alto = meglio).
 
 ## Comandi
 

@@ -11,7 +11,8 @@ import {
   bracketSeeds,
   bracketSize,
   composeF2,
-  roundRobin,
+  homeCounts,
+  scheduleRoundRobin,
   snakeGroups,
   validateBestOfThree,
   validateNineGame,
@@ -77,10 +78,14 @@ async function createRoundRobin(supabase: Supa, d: TournamentData, phase: "F1" |
   const rank = phase === "F1"
     ? new Map(d.players.map((p) => [p.id, -(p.seed_score ?? 0)]))
     : new Map(d.overall.map((r) => [r.player_id, r.overall]));
+  // casa/trasferta (art. 4.1): max 2 di fila, metà partite in casa, compensazione rispetto alla Fase 1
+  // e sorteggio per decidere chi riceve la partita in casa in più
+  const prior = phase === "F2" ? homeCounts(d.matches.filter((m) => m.phase === "F1")) : { priorHome: {}, priorGames: {} };
+  const draw = Object.fromEntries(Object.keys(groups).map((id) => [id, Math.random()]));
   const rows: Partial<Match>[] = [];
   for (const [g, ids] of Object.entries(byGroup)) {
     ids.sort((a, b) => (rank.get(a) ?? 0) - (rank.get(b) ?? 0));
-    roundRobin(ids).forEach((p, i) => {
+    scheduleRoundRobin(ids, { ...prior, draw }).forEach((p, i) => {
       const week = weekForGroupRound(d.schedule, phase, p.round);
       rows.push({
         phase, group_code: g, round: p.round, slot: i + 1, home_id: p.home, away_id: p.away,

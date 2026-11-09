@@ -9,6 +9,10 @@ import {
   computeGroupStandings,
   overallF1,
   roundRobin,
+  scheduleRoundRobin,
+  homeAwayStats,
+  homeCounts,
+  homeTargets,
   scheduleInputFor,
   snakeGroups,
   standardSeedOrder,
@@ -315,5 +319,50 @@ describe("calendario (art. 3, 4.8, 7.1, A.5)", () => {
     expect(weekForBracketRound(s, 16, 1, DEFAULT_SETTINGS.finals_day)?.start).toBe("2027-03-22"); // preliminare
     expect(weekForBracketRound(s, 8, 1, DEFAULT_SETTINGS.finals_day)?.start).toBe("2027-03-29"); // quarti
     expect(weekForBracketRound(s, 8, 2, DEFAULT_SETTINGS.finals_day)?.start).toBe("2027-04-05"); // semifinali
+  });
+});
+
+describe("casa/trasferta (art. 4.1, 4.6)", () => {
+  const ids = (n: number) => Array.from({ length: n }, (_, i) => `p${i + 1}`);
+
+  it("nessun girone da 3 a 10: mai più di 2 partite di fila uguali, partite in casa = metà", () => {
+    for (let n = 3; n <= 10; n++) {
+      const st = homeAwayStats(scheduleRoundRobin(ids(n)));
+      for (const s of Object.values(st)) {
+        expect(s.maxStreak).toBeLessThanOrEqual(2);
+        expect([Math.floor(s.games / 2), Math.ceil(s.games / 2)]).toContain(s.home);
+      }
+    }
+  });
+
+  it("girone da 4: il sorteggio decide chi gioca 2 partite in casa", () => {
+    const draw = { p1: 0.1, p2: 0.9, p3: 0.2, p4: 0.8 };
+    const st = homeAwayStats(scheduleRoundRobin(ids(4), { draw }));
+    expect(st.p2.home).toBe(2);
+    expect(st.p4.home).toBe(2);
+    expect(st.p1.home).toBe(1);
+    expect(st.p3.home).toBe(1);
+  });
+
+  it("Fase 2 compensa la Fase 1: chi ha giocato 2 su 3 in casa ne gioca 3 su 7, chi 1 su 3 ne gioca 4", () => {
+    const g = ids(8);
+    const priorHome = Object.fromEntries(g.map((id, i) => [id, i % 2 === 0 ? 2 : 1]));
+    const priorGames = Object.fromEntries(g.map((id) => [id, 3]));
+    const t = homeTargets(scheduleRoundRobin(g), { priorHome, priorGames });
+    const st = homeAwayStats(scheduleRoundRobin(g, { priorHome, priorGames }));
+    for (const id of g) {
+      expect(t[id] + priorHome[id]).toBe(5);
+      expect(st[id].home + priorHome[id]).toBe(5);
+      expect(st[id].maxStreak).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it("homeCounts ignora le partite annullate", () => {
+    const c = homeCounts([
+      { home_id: "a", away_id: "b", result_type: "played" },
+      { home_id: "a", away_id: "c", result_type: "annulled" },
+    ]);
+    expect(c.priorHome).toEqual({ a: 1 });
+    expect(c.priorGames).toEqual({ a: 1, b: 1 });
   });
 });
